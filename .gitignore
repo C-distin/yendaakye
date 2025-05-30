@@ -36,3 +36,9 @@ next-env.d.ts
 
 # bolt
 /.bolt/
+
+# bun
+bun.lock
+
+# drizzle
+drizzle/
