@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Company } from '@/lib/types';
+import { Company } from '@/lib/db/schema';
 import {
   Table,
   TableBody,
@@ -32,20 +32,20 @@ import { MoreVertical, Pencil, Trash2, Globe } from 'lucide-react';
 interface CompaniesListProps {
   companies: Company[];
   onEdit: (company: Company) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: number) => void;
 }
 
 const CompaniesList = ({ companies, onEdit, onDelete }: CompaniesListProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
+  const [companyToDelete, setCompanyToDelete] = useState<number | null>(null);
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: number) => {
     setCompanyToDelete(id);
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (companyToDelete) {
+    if (companyToDelete !== null) {
       onDelete(companyToDelete);
       setDeleteDialogOpen(false);
       setCompanyToDelete(null);

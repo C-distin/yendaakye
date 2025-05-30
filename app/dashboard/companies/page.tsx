@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,18 +8,41 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CompanyForm from '@/components/dashboard/company-form';
 import CompaniesList from '@/components/dashboard/companies-list';
 import { Building2, PlusCircle } from 'lucide-react';
-import { Company, CompanyFormValues } from '@/lib/types';
-import { getAllCompanies, addCompany, updateCompany, deleteCompany } from '@/lib/data';
+import { type CompanyFormValues } from '@/lib/types';
+import { db } from '@/lib/db';
+import { companies, type Company } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm/pg-core';
 
 export default function CompaniesPage() {
   const [activeTab, setActiveTab] = useState('list');
-  const [companies, setCompanies] = useState(getAllCompanies());
+  const [companiesList, setCompaniesList] = useState<Company[]>([]);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
 
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  const fetchCompanies = async () => {
+    try {
+      const result = await db.select().from(companies);
+      setCompaniesList(result);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    }
+  };
+
   const handleAddCompany = async (data: CompanyFormValues) => {
-    const newCompany = addCompany(data);
-    setCompanies(getAllCompanies());
-    setActiveTab('list');
+    try {
+      await db.insert(companies).values({
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      await fetchCompanies();
+      setActiveTab('list');
+    } catch (error) {
+      console.error('Error adding company:', error);
+    }
   };
 
   const handleEditCompany = (company: Company) => {
@@ -29,16 +52,30 @@ export default function CompaniesPage() {
 
   const handleUpdateCompany = async (data: CompanyFormValues) => {
     if (editingCompany) {
-      updateCompany(editingCompany.id, data);
-      setCompanies(getAllCompanies());
-      setEditingCompany(null);
-      setActiveTab('list');
+      try {
+        await db
+          .update(companies)
+          .set({
+            ...data,
+            updatedAt: new Date(),
+          })
+          .where(eq(companies.id, editingCompany.id));
+        await fetchCompanies();
+        setEditingCompany(null);
+        setActiveTab('list');
+      } catch (error) {
+        console.error('Error updating company:', error);
+      }
     }
   };
 
-  const handleDeleteCompany = (id: string) => {
-    deleteCompany(id);
-    setCompanies(getAllCompanies());
+  const handleDeleteCompany = async (id: number) => {
+    try {
+      await db.delete(companies).where(eq(companies.id, id));
+      await fetchCompanies();
+    } catch (error) {
+      console.error('Error deleting company:', error);
+    }
   };
 
   return (
@@ -74,7 +111,7 @@ export default function CompaniesPage() {
 
             <TabsContent value="list">
               <CompaniesList
-                companies={companies}
+                companies={companiesList}
                 onEdit={handleEditCompany}
                 onDelete={handleDeleteCompany}
               />

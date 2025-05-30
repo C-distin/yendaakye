@@ -48,4 +48,12 @@ export const companySchema = z.object({
   website: z.string().url({ message: 'Please enter a valid website URL' }),
 });
 
-export type CompanyFormValues = z.infer<typeof companySchema>;
+export type CompanyFormValues = {
+  name: string;
+  logo?: string | null;
+  description?: string | null;
+  founded?: string | null;
+  location?: string | null;
+  employees?: string | null;
+  website?: string | null;
+};

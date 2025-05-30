@@ -1,20 +1,19 @@
-import { drizzle } from 'drizzle-orm/postgres-js'
-import postgres from 'postgres'
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import * as schema from './schema';
 
-// Check if we're running in production
-const isProduction = process.env.NODE_ENV === 'production'
-
+// Check if the DATABASE_URL environment variable exists
 if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL is not set')
+  throw new Error('DATABASE_URL environment variable is not set');
 }
 
-const connectionString = process.env.DATABASE_URL
+// Create a new PostgreSQL connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
-// Disable prefetch as it is not supported for "Transaction" pool mode
-const client = postgres(connectionString, {
-  prepare: false,
-  ssl: isProduction, // Enable SSL in production
-  max: 20, // Maximum number of connections
-})
+// Create a Drizzle instance with the pool and schema
+export const db = drizzle(pool, { schema });
 
-export const db = drizzle(client); 
+// Export the pool to be able to end it when needed
+export { pool }; 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,10 +25,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { getCategories, getJobTypes, updateJob, addJob } from '@/lib/data';
-import { companies } from '@/lib/companies';
+import { getCategories, getJobTypes } from '@/lib/data';
+import { createJob, updateJob } from '@/lib/db/queries';
 import { CheckCircle2 } from 'lucide-react';
-import { Job } from '@/lib/types';
+import { Job, Company } from '@/lib/types';
 
 interface JobPostingFormProps {
   initialData?: Job;
@@ -38,17 +38,32 @@ interface JobPostingFormProps {
 const JobPostingForm = ({ initialData, mode = 'create' }: JobPostingFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const router = useRouter();
   
   const categories = getCategories();
   const jobTypes = getJobTypes();
+
+  useEffect(() => {
+    // Fetch companies on component mount
+    const fetchCompanies = async () => {
+      try {
+        const response = await fetch('/api/companies');
+        const data = await response.json();
+        setCompanies(data);
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+      }
+    };
+    fetchCompanies();
+  }, []);
 
   const form = useForm<JobFormValues>({
     resolver: zodResolver(jobSchema),
     defaultValues: initialData ? {
       id: Number(initialData.id),
       title: initialData.title,
-      companyId: 1, // TODO: Get actual company ID
+      companyId: initialData.companyId,
       logo: initialData.logo,
       location: initialData.location,
       salary: initialData.salary,
@@ -63,7 +78,7 @@ const JobPostingForm = ({ initialData, mode = 'create' }: JobPostingFormProps) =
       updatedAt: new Date()
     } : {
       title: '',
-      companyId: 1, // TODO: Get actual company ID
+      companyId: undefined,
       logo: '',
       location: '',
       salary: '',
@@ -81,29 +96,22 @@ const JobPostingForm = ({ initialData, mode = 'create' }: JobPostingFormProps) =
 
   const onSubmit = async (values: JobFormValues) => {
     setIsSubmitting(true);
-    
-    // TODO: Update this to use proper database operations
-    const jobData = {
-      ...values,
-      id: values.id || Date.now(),
-      updatedAt: new Date()
-    };
-
-    if (mode === 'edit' && initialData) {
-      updateJob(jobData);
-    } else {
-      addJob(jobData);
-    }
-    
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    
-    if (mode === 'edit') {
-      router.push('/dashboard');
-    } else {
-      form.reset();
+    try {
+      if (mode === 'edit' && initialData?.id) {
+        await updateJob(initialData.id, values);
+      } else {
+        await createJob(values);
+      }
+      setIsSubmitted(true);
+      if (mode === 'edit') {
+        router.push('/dashboard');
+      } else {
+        form.reset();
+      }
+    } catch (error) {
+      console.error('Error saving job:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -151,14 +159,17 @@ const JobPostingForm = ({ initialData, mode = 'create' }: JobPostingFormProps) =
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Company</FormLabel>
-                <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
+                <Select 
+                  onValueChange={(value) => field.onChange(Number(value))} 
+                  defaultValue={field.value ? String(field.value) : undefined}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select company" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {Object.values(companies).map((company) => (
+                    {companies.map((company) => (
                       <SelectItem key={company.id} value={String(company.id)}>
                         {company.name}
                       </SelectItem>
