@@ -56,7 +56,7 @@ const Header = () => {
               height={200}
               className="h-8 w-8 object-contain"
             />
-            <span className="hidden sm:inline-block">Yendaakye</span>
+            <span className="hidden sm:inline-block">Yendaakye Job Center</span>
           </Link>
 
           {/* Desktop Navigation */}
